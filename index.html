@@ -1,45 +1,64 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Portfolio Dashboard</title>
+    <title>StockDB Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
+        body { font-family: Arial; margin: 20px; }
         .chart-container { width: 80%; margin: 20px auto; }
+        select { padding: 8px; margin: 10px; }
     </style>
 </head>
 <body>
-    <h1>Stock Portfolio Visualization</h1>
+    <h1>Portfolio Performance</h1>
+    <select id="portfolioFilter" onchange="loadData()">
+        <option value="all">All Portfolios</option>
+    </select>
     <div class="chart-container">
-        <canvas id="sectorChart"></canvas>
+        <canvas id="chart"></canvas>
     </div>
 
     <script>
-        // Sample data for the chart
-        const data = {
-            labels: ['Technology', 'Healthcare', 'Financial', 'Consumer', 'Industrial'],
-            datasets: [{
-                label: 'Sector Distribution (%)',
-                data: [47.8, 20.6, 16.3, 8.2, 7.1],
-                backgroundColor: [
-                    'rgba(54, 162, 235, 0.6)',
-                    'rgba(75, 192, 192, 0.6)',
-                    'rgba(255, 206, 86, 0.6)',
-                    'rgba(153, 102, 255, 0.6)',
-                    'rgba(255, 159, 64, 0.6)'
-                ]
-            }]
-        };
+        let chart;
+        
+        async function init() {
+            const response = await axios.get('/api/portfolio-metrics');
+            const filter = document.getElementById('portfolioFilter');
+            response.data.data.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.PortfolioName;
+                option.text = p.PortfolioName;
+                filter.appendChild(option);
+            });
+            loadData();
+        }
 
-        // Create the chart
-        const ctx = document.getElementById('sectorChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'doughnut',
-            data: data,
-            options: { responsive: true }
-        });
+        async function loadData() {
+            const portfolio = document.getElementById('portfolioFilter').value;
+            const url = portfolio === 'all' 
+                ? '/api/portfolio-metrics' 
+                : `/api/portfolio-metrics?portfolio=${encodeURIComponent(portfolio)}`;
+            
+            const { data } = await axios.get(url);
+            
+            if (chart) chart.destroy();
+            
+            const ctx = document.getElementById('chart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.data.map(p => p.PortfolioName),
+                    datasets: [{
+                        label: 'Total Value ($)',
+                        data: data.data.map(p => p.TotalValue),
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)'
+                    }]
+                }
+            });
+        }
+
+        init();
     </script>
 </body>
 </html>
